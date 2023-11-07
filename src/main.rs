@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::io::prelude::*;
-use std::net::{TcpStream, TcpListener};
 use std::io::BufReader;
+use std::net::{TcpListener, TcpStream};
+use std::thread;
 
 struct Request {
     _method: String,
     path: String,
-    _body: String,
     headers: HashMap<String, String>,
+    _body: String,
 }
 
 impl Request {
@@ -30,10 +31,18 @@ impl Request {
         }
 
         Self {
-            _method: http_request[0].split_whitespace().nth(0).unwrap().to_string(),
-            path: http_request[0].split_whitespace().nth(1).unwrap().to_string(),
-            _body: http_request[http_request.len() - 1].to_string(),
+            _method: http_request[0]
+                .split_whitespace()
+                .nth(0)
+                .unwrap()
+                .to_string(),
+            path: http_request[0]
+                .split_whitespace()
+                .nth(1)
+                .unwrap()
+                .to_string(),
             headers,
+            _body: http_request[http_request.len() - 1].to_string(),
         }
     }
 
@@ -94,7 +103,9 @@ fn main() {
         match stream {
             Ok(stream) => {
                 println!("accepted new connection");
-                handle_connection(stream);
+                thread::spawn(|| {
+                    handle_connection(stream);
+                });
             }
             Err(e) => {
                 println!("error: {}", e);

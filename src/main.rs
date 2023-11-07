@@ -1,25 +1,54 @@
-use std::{
-    io::{prelude::*, BufReader, Write},
-    net::TcpListener,
-};
+use std::io::prelude::*;
+use std::net::{TcpStream, TcpListener};
+use std::io::BufReader;
 
-fn handle_connection(mut stream: std::net::TcpStream) {
-    let buffer = BufReader::new(stream.try_clone().unwrap());
-    let http_request: Vec<_> = buffer
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
+struct Request {
+    _method: String,
+    path: String,
+    _body: String,
+}
 
-    let path = http_request[0].split_whitespace().nth(1).unwrap();
-
-    if path == "/" {
-        let response = "HTTP/1.1 200 OK\r\n\r\n";
-        stream.write(response.as_bytes()).unwrap();
-    } else {
-        let response = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
-        stream.write(response.as_bytes()).unwrap();
+impl Request {
+    fn read_request(stream: TcpStream) -> Vec<String> {
+        let buffer = BufReader::new(stream.try_clone().unwrap());
+        buffer
+            .lines()
+            .map(|result| result.unwrap())
+            .take_while(|line| !line.is_empty())
+            .collect()
     }
+
+    fn from_http_request(http_request: Vec<String>) -> Self {
+        Self {
+            _method: http_request[0].split_whitespace().nth(0).unwrap().to_string(),
+            path: http_request[0].split_whitespace().nth(1).unwrap().to_string(),
+            _body: http_request[http_request.len() - 1].to_string(),
+        }
+    }
+
+    fn handle_request(&self, mut stream: TcpStream) {
+        if self.path == "/" {
+            let response = "HTTP/1.1 200 OK\r\n\r\n";
+            stream.write(response.as_bytes()).unwrap();
+        } else if self.path.starts_with("/echo") {
+            let string = self.path.replace("/echo/", "");
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                string.len(),
+                string
+            );
+            stream.write(response.as_bytes()).unwrap();
+        } else {
+            let response = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+            stream.write(response.as_bytes()).unwrap();
+        }
+    }
+}
+
+fn handle_connection(stream: TcpStream) {
+    let http_request = Request::read_request(stream.try_clone().unwrap());
+    let request = Request::from_http_request(http_request);
+    request.handle_request(stream);
 }
 
 fn main() {

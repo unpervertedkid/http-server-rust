@@ -13,7 +13,7 @@ fn handle_connection(mut stream: std::net::TcpStream) {
 
     let path = http_request[0].split_whitespace().nth(1).unwrap();
 
-    if path.starts_with("/") {
+    if path == "/" {
         let response = "HTTP/1.1 200 OK\r\n\r\n";
         stream.write(response.as_bytes()).unwrap();
     } else {
